@@ -127,46 +127,56 @@ def draw_floor(screen, base_tile, moss_tile=None, layout=None):
             screen.blit(tile, (x, y))
 
 
-def draw_floor_with_camera(screen, base_tile, moss_tile, layout, camera_x, camera_y):
+def _scale_surface(surface, zoom):
+    if zoom == 1.0 or surface is None:
+        return surface
+    w = max(1, int(surface.get_width() * zoom))
+    h = max(1, int(surface.get_height() * zoom))
+    return pygame.transform.scale(surface, (w, h))
+
+
+def draw_floor_with_camera(screen, base_tile, moss_tile, layout, camera_x, camera_y, zoom=1.0):
     """
-    Рисует пол с учётом камеры (для основной игры)
+    Рисует пол с учётом камеры и зума (для основной игры)
     """
     if not base_tile:
         screen.fill((20, 12, 30))
         return
-    
+
     sw, sh = screen.get_size()
-    tw, th = base_tile.get_size()
-    
-    # Если layout нет, рисуем просто текстуру на весь экран
+    tw = max(1, int(base_tile.get_width() * zoom))
+    th = max(1, int(base_tile.get_height() * zoom))
+    base = _scale_surface(base_tile, zoom) if zoom != 1.0 else base_tile
+    moss = _scale_surface(moss_tile, zoom) if moss_tile and zoom != 1.0 else moss_tile
+
     if not layout:
-        for row, y in enumerate(range(0, sh, th)):
-            for col, x in enumerate(range(0, sw, tw)):
-                screen.blit(base_tile, (x, y))
+        for y in range(0, sh, th):
+            for x in range(0, sw, tw):
+                screen.blit(base, (x, y))
         return
-    
+
     layout_cols = len(layout[0]) if layout else 0
     layout_rows = len(layout) if layout else 0
 
-    start_col = int(math.floor(camera_x / tw))
-    end_col = int(math.ceil((camera_x + sw) / tw))
-    start_row = int(math.floor(camera_y / th))
-    end_row = int(math.ceil((camera_y + sh) / th))
+    start_col = int(math.floor(camera_x / TILE_SIZE))
+    end_col = int(math.ceil((camera_x + sw / zoom) / TILE_SIZE))
+    start_row = int(math.floor(camera_y / TILE_SIZE))
+    end_row = int(math.ceil((camera_y + sh / zoom) / TILE_SIZE))
 
     for row in range(start_row, end_row):
         for col in range(start_col, end_col):
-            screen_x = col * tw - camera_x
-            screen_y = row * th - camera_y
+            screen_x = (col * TILE_SIZE - camera_x) * zoom
+            screen_y = (row * TILE_SIZE - camera_y) * zoom
             if screen_x + tw <= 0 or screen_x >= sw or screen_y + th <= 0 or screen_y >= sh:
                 continue
 
             use_moss = (
-                moss_tile is not None
+                moss is not None
                 and 0 <= row < layout_rows
                 and 0 <= col < layout_cols
                 and layout[row][col]
             )
-            screen.blit(moss_tile if use_moss else base_tile, (screen_x, screen_y))
+            screen.blit(moss if use_moss else base, (screen_x, screen_y))
 
 
 def draw_walls(screen, wall_tile, map_width, map_height, camera_x=0, camera_y=0, show_collision=False, collision_rects=None):
