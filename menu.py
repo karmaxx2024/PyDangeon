@@ -134,26 +134,26 @@ class Menu:
                 self.screen.fill(BLACK)
 
             overlay = pygame.Surface((screen_w, screen_h), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 100))
+            overlay.fill((0, 0, 0, 0))
             self.screen.blit(overlay, (0, 0))
 
-            title = self.title_font.render("PYDANGEON", True, GOLD)
+            title = self.title_font.render("", True, GOLD)
             title_rect = title.get_rect(center=(screen_w // 2, screen_h // 4))
-            title_shadow = self.title_font.render("PYDANGEON", True, (0, 0, 0))
+            title_shadow = self.title_font.render("", True, (0, 0, 0))
             shadow_rect = title_rect.copy()
             shadow_rect.x += 3
             shadow_rect.y += 3
             self.screen.blit(title_shadow, shadow_rect)
             self.screen.blit(title, title_rect)
 
-            subtitle = self.hint_font.render("!Let's Go travel through dungeons!", True, (180, 200, 150))
+            subtitle = self.hint_font.render("", True, (180, 200, 150))
             subtitle_rect = subtitle.get_rect(center=(screen_w // 2, screen_h // 4 + 70))
             self.screen.blit(subtitle, subtitle_rect)
 
             button_w = 250
             button_h = 60
             start_x = screen_w // 2 - button_w // 2
-            start_y = screen_h // 2 - 60
+            start_y = screen_h // 2 + 40
 
             mouse_x, mouse_y = pygame.mouse.get_pos()
             for i in range(len(self.menu_items)):
