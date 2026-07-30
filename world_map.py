@@ -1,35 +1,36 @@
 import pygame
 import random
-from settings import TILE_SIZE
+from settings import TILE_SIZE, CAMERA_VIEW_TILES_W
 from main_generator import MazeGenerator
 
 
-def calc_maze_tiles(screen_w, screen_h, tile_size=TILE_SIZE, margin_tiles=8):
-    """Нечётный размер лабиринта: карта >= экран + запас для прокрутки камеры."""
-    def odd_at_least(n):
-        n = max(5, int(n))
-        return n if n % 2 == 1 else n + 1
-
-    width = odd_at_least(screen_w / tile_size + margin_tiles)
-    height = odd_at_least(screen_h / tile_size + margin_tiles)
-    return width, height
+def calc_camera_viewport(screen_w, screen_h, tile_size=TILE_SIZE):
+    """Зум и размер видимой области в мировых пикселях (не зависит от размера карты)."""
+    zoom = screen_w / (CAMERA_VIEW_TILES_W * tile_size)
+    view_w = screen_w / zoom
+    view_h = screen_h / zoom
+    return zoom, view_w, view_h
 
 
-def update_camera(player, sw, sh, map_width_px, map_height_px):
-    """Камера следует за игроком; у краёв карты — без чёрных полос."""
-    if map_width_px <= sw:
-        camera_x = (map_width_px - sw) // 2
-    else:
-        camera_x = player.rect.centerx - sw // 2
-        camera_x = max(0, min(camera_x, map_width_px - sw))
+def update_camera(player, view_w, view_h, map_width_px, map_height_px):
+    """Камера всегда следует за игроком, у краёв карты — clamp."""
+    camera_x = player.rect.centerx - view_w / 2
+    camera_y = player.rect.centery - view_h / 2
 
-    if map_height_px <= sh:
-        camera_y = (map_height_px - sh) // 2
-    else:
-        camera_y = player.rect.centery - sh // 2
-        camera_y = max(0, min(camera_y, map_height_px - sh))
+    max_x = max(0, map_width_px - view_w)
+    max_y = max(0, map_height_px - view_h)
+    camera_x = max(0, min(camera_x, max_x))
+    camera_y = max(0, min(camera_y, max_y))
 
     return camera_x, camera_y
+
+
+def scale_surface(surface, zoom):
+    if zoom == 1.0 or surface is None:
+        return surface
+    w = max(1, int(surface.get_width() * zoom))
+    h = max(1, int(surface.get_height() * zoom))
+    return pygame.transform.scale(surface, (w, h))
 
 
 class Room:
@@ -364,28 +365,32 @@ class DungeonGenerator:
                 return True
         return False
     
-    def draw(self, screen, camera_x, camera_y, wall_tile):
+    def draw(self, screen, camera_x, camera_y, wall_tile, zoom=1.0):
         """Рисует подземелье"""
+        sw, sh = screen.get_size()
+        tile_px = max(1, int(self.tile_size * zoom))
+
         for x, y, rect in self.walls:
-            screen_x = rect.x - camera_x
-            screen_y = rect.y - camera_y
-            
-            # Оптимизация: не рисуем за пределами экрана
-            if (screen_x + self.tile_size < 0 or screen_x > screen.get_width() or
-                screen_y + self.tile_size < 0 or screen_y > screen.get_height()):
+            screen_x = (rect.x - camera_x) * zoom
+            screen_y = (rect.y - camera_y) * zoom
+
+            if (screen_x + tile_px < 0 or screen_x > sw or
+                    screen_y + tile_px < 0 or screen_y > sh):
                 continue
-            
+
             if wall_tile:
                 screen.blit(wall_tile, (screen_x, screen_y))
             else:
-                pygame.draw.rect(screen, (80, 80, 80), (screen_x, screen_y, self.tile_size, self.tile_size))
-    
-    def draw_debug(self, screen, camera_x, camera_y):
+                pygame.draw.rect(screen, (80, 80, 80), (screen_x, screen_y, tile_px, tile_px))
+
+    def draw_debug(self, screen, camera_x, camera_y, zoom=1.0):
         """Рисует отладку (красные рамки коллизий)"""
         for rect in self.collision_rects:
-            screen_x = rect.x - camera_x
-            screen_y = rect.y - camera_y
-            pygame.draw.rect(screen, (255, 0, 0), (screen_x, screen_y, rect.width, rect.height), 2)
+            screen_x = (rect.x - camera_x) * zoom
+            screen_y = (rect.y - camera_y) * zoom
+            w = max(1, int(rect.width * zoom))
+            h = max(1, int(rect.height * zoom))
+            pygame.draw.rect(screen, (255, 0, 0), (screen_x, screen_y, w, h), max(1, int(2 * zoom)))
         
         # Рисуем комнаты синими рамками
         for room in self.rooms:
