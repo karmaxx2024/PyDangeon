@@ -5,13 +5,17 @@ import pygame
 
 # ========== РАЗМЕРЫ ПО УМОЛЧАНИЮ ==========
 TILE_SIZE = 32
-MAP_WIDTH = 20
-MAP_HEIGHT = 20
+# Размер лабиринта в тайлах (нечётные числа — требование DFS-генератора)
+MAP_WIDTH = 31
+MAP_HEIGHT = 21
+# Сколько тайлов видно по горизонтали (зум: на большом экране тайлы крупнее)
+CAMERA_VIEW_TILES_W = 20
 DEFAULT_SCREEN_W = 1280   # <-- добавлено
 DEFAULT_SCREEN_H = 720    # <-- добавлено
 FPS = 60
 PLAYER_SPEED = 300
 DEFAULT_PLAYER_SPEED = 300
+FLOOR_TILE_WIDTH_MULTIPLIER = 2
 
 # ========== ЦВЕТА ==========
 BLACK = (0, 0, 0)
