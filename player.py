@@ -185,24 +185,29 @@ class Player:
         pygame.draw.rect(screen, (220, 50, 50), (bar_x, bar_y, hp_fill, bar_h), border_radius=3)
         pygame.draw.rect(screen, WHITE, (bar_x, bar_y, bar_w, bar_h), 1, border_radius=3)
 
-    def draw_with_camera(self, screen, camera_x, camera_y):
-        """
-        Отрисовка игрока с учётом камеры
-        Используется в основной игре
-        """
-        center_x = int(self.x) - camera_x
-        center_y = int(self.y) - camera_y
+    def draw_with_camera(self, screen, camera_x, camera_y, zoom=1.0):
+        """Отрисовка игрока с учётом камеры и зума"""
+        center_x = (self.x - camera_x) * zoom
+        center_y = (self.y - camera_y) * zoom
 
         if self.image:
-            sprite_rect = self.image.get_rect(center=(center_x, center_y))
-            screen.blit(self.image, sprite_rect)
+            if zoom != 1.0:
+                w = max(1, int(self.image.get_width() * zoom))
+                h = max(1, int(self.image.get_height() * zoom))
+                img = pygame.transform.scale(self.image, (w, h))
+            else:
+                img = self.image
+            sprite_rect = img.get_rect(center=(int(center_x), int(center_y)))
+            screen.blit(img, sprite_rect)
+            half = max(img.get_width(), img.get_height()) // 2
         else:
-            pygame.draw.circle(screen, self.color, (center_x, center_y), self.size)
+            half = int(self.size * zoom)
+            pygame.draw.circle(screen, self.color, (int(center_x), int(center_y)), half)
 
-        bar_w = 50
-        bar_h = 7
-        bar_x = center_x - bar_w // 2
-        bar_y = center_y - self.size - 16
+        bar_w = int(50 * zoom)
+        bar_h = max(1, int(7 * zoom))
+        bar_x = int(center_x) - bar_w // 2
+        bar_y = int(center_y) - half - int(16 * zoom)
 
         pygame.draw.rect(screen, (80, 0, 0), (bar_x, bar_y, bar_w, bar_h), border_radius=3)
         hp_fill = int(bar_w * self.hp / self.max_hp)
