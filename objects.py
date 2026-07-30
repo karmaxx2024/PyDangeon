@@ -2,111 +2,111 @@ import pygame
 import math
 import random
 
-class Torch(pygame.sprite.Sprite):
-    """Факел на стене с анимированным пламенем"""
-    def __init__(self, x, y, direction='left', wall_side=None):
-        super().__init__()
-        self.x = x
-        self.y = y
-        self.direction = direction
-        self.wall_side = wall_side or ('left' if direction == 'right' else 'right')
-        self.frame = 0
-        self.animation_speed = 0.1
+# class Torch(pygame.sprite.Sprite):
+#     """Факел на стене с анимированным пламенем"""
+#     def __init__(self, x, y, direction='left', wall_side=None):
+#         super().__init__()
+#         self.x = x
+#         self.y = y
+#         self.direction = direction
+#         self.wall_side = wall_side or ('left' if direction == 'right' else 'right')
+#         self.frame = 0
+#         self.animation_speed = 0.1
 
-        self.width = 40
-        self.height = 60
+#         self.width = 20
+#         self.height = 30
 
-        self.image = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        self.rect = self.image.get_rect()
-        anchor = {
-            'left': 'midright',
-            'right': 'midleft',
-            'top': 'midbottom',
-            'bottom': 'midtop',
-        }.get(self.wall_side, 'center')
-        setattr(self.rect, anchor, (x, y))
+#         self.image = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+#         self.rect = self.image.get_rect()
+#         anchor = {
+#             'left': 'midright',
+#             'right': 'midleft',
+#             'top': 'midbottom',
+#             'bottom': 'midtop',
+#         }.get(self.wall_side, 'center')
+#         setattr(self.rect, anchor, (x, y))
 
-        self.flame_offset = 0
-        self.draw_torch()
+#         self.flame_offset = 0
+#         self.draw_torch()
         
-    def update(self, dt):
-        """Обновление анимации"""
-        self.frame += self.animation_speed
-        self.flame_offset = math.sin(self.frame * 3) * 3 + math.sin(self.frame * 7) * 1.5
+#     def update(self, dt):
+#         """Обновление анимации"""
+#         self.frame += self.animation_speed
+#         self.flame_offset = math.sin(self.frame * 3) * 3 + math.sin(self.frame * 7) * 1.5
         
-        # Перерисовываем факел
-        self.draw_torch()
+#         # Перерисовываем факел
+#         self.draw_torch()
         
-    def draw_torch(self):
-        """Рисуем факел геометрическими фигурами"""
-        self.image.fill((0, 0, 0, 0))  # Прозрачный фон
+#     def draw_torch(self):
+#         """Рисуем факел геометрическими фигурами"""
+#         self.image.fill((0, 0, 0, 0))  # Прозрачный фон
         
-        # Определяем, с какой стороны рисовать
-        if self.direction == 'left':
-            handle_x = 10
-            flame_x = 25
-        else:
-            handle_x = 25
-            flame_x = 10
+#         # Определяем, с какой стороны рисовать
+#         if self.direction == 'left':
+#             handle_x = 10
+#             flame_x = 25
+#         else:
+#             handle_x = 25
+#             flame_x = 10
             
-        # === Деревянная ручка ===
-        # Тень ручки
-        pygame.draw.rect(self.image, (40, 30, 20), 
-                        (handle_x - 2, 25, 10, 30), border_radius=3)
-        # Основная ручка
-        pygame.draw.rect(self.image, (120, 80, 40), 
-                        (handle_x, 20, 6, 35), border_radius=3)
-        # Светлая полоска на ручке
-        pygame.draw.line(self.image, (160, 120, 70), 
-                        (handle_x + 2, 22), (handle_x + 2, 52), 1)
+#         # === Деревянная ручка ===
+#         # Тень ручки
+#         pygame.draw.rect(self.image, (40, 30, 20), 
+#                         (handle_x - 2, 25, 10, 30), border_radius=3)
+#         # Основная ручка
+#         pygame.draw.rect(self.image, (120, 80, 40), 
+#                         (handle_x, 20, 6, 35), border_radius=3)
+#         # Светлая полоска на ручке
+#         pygame.draw.line(self.image, (160, 120, 70), 
+#                         (handle_x + 2, 22), (handle_x + 2, 52), 1)
         
-        # === Огонь ===
-        flame_height = 25 + self.flame_offset * 0.5
+#         # === Огонь ===
+#         flame_height = 25 + self.flame_offset * 0.5
         
-        # Внешнее свечение (жёлтое)
-        glow_points = [
-            (flame_x, 5 + self.flame_offset * 0.3),
-            (flame_x + 10, 8 + self.flame_offset * 0.5),
-            (flame_x + 12, 15 + self.flame_offset * 0.7),
-            (flame_x + 8, 22 + self.flame_offset * 0.4),
-            (flame_x, 25 + self.flame_offset * 0.2),
-            (flame_x - 8, 22 + self.flame_offset * 0.4),
-            (flame_x - 12, 15 + self.flame_offset * 0.7),
-            (flame_x - 10, 8 + self.flame_offset * 0.5),
-        ]
-        pygame.draw.polygon(self.image, (255, 200, 50), glow_points)
+#         # Внешнее свечение (жёлтое)
+#         glow_points = [
+#             (flame_x, 5 + self.flame_offset * 0.3),
+#             (flame_x + 10, 8 + self.flame_offset * 0.5),
+#             (flame_x + 12, 15 + self.flame_offset * 0.7),
+#             (flame_x + 8, 22 + self.flame_offset * 0.4),
+#             (flame_x, 25 + self.flame_offset * 0.2),
+#             (flame_x - 8, 22 + self.flame_offset * 0.4),
+#             (flame_x - 12, 15 + self.flame_offset * 0.7),
+#             (flame_x - 10, 8 + self.flame_offset * 0.5),
+#         ]
+#         pygame.draw.polygon(self.image, (255, 200, 50), glow_points)
         
-        # Внутреннее пламя (оранжевое)
-        inner_flame = [
-            (flame_x, 10 + self.flame_offset * 0.3),
-            (flame_x + 6, 13 + self.flame_offset * 0.5),
-            (flame_x + 7, 18 + self.flame_offset * 0.6),
-            (flame_x + 4, 22 + self.flame_offset * 0.3),
-            (flame_x, 23 + self.flame_offset * 0.2),
-            (flame_x - 4, 22 + self.flame_offset * 0.3),
-            (flame_x - 7, 18 + self.flame_offset * 0.6),
-            (flame_x - 6, 13 + self.flame_offset * 0.5),
-        ]
-        pygame.draw.polygon(self.image, (255, 120, 20), inner_flame)
+#         # Внутреннее пламя (оранжевое)
+#         inner_flame = [
+#             (flame_x, 10 + self.flame_offset * 0.3),
+#             (flame_x + 6, 13 + self.flame_offset * 0.5),
+#             (flame_x + 7, 18 + self.flame_offset * 0.6),
+#             (flame_x + 4, 22 + self.flame_offset * 0.3),
+#             (flame_x, 23 + self.flame_offset * 0.2),
+#             (flame_x - 4, 22 + self.flame_offset * 0.3),
+#             (flame_x - 7, 18 + self.flame_offset * 0.6),
+#             (flame_x - 6, 13 + self.flame_offset * 0.5),
+#         ]
+#         pygame.draw.polygon(self.image, (255, 120, 20), inner_flame)
         
-        # Ядро пламени (белое)
-        core = [
-            (flame_x, 14 + self.flame_offset * 0.2),
-            (flame_x + 3, 16 + self.flame_offset * 0.3),
-            (flame_x + 3, 19 + self.flame_offset * 0.3),
-            (flame_x, 20 + self.flame_offset * 0.2),
-            (flame_x - 3, 19 + self.flame_offset * 0.3),
-            (flame_x - 3, 16 + self.flame_offset * 0.3),
-        ]
-        pygame.draw.polygon(self.image, (255, 255, 200), core)
+#         # Ядро пламени (белое)
+#         core = [
+#             (flame_x, 14 + self.flame_offset * 0.2),
+#             (flame_x + 3, 16 + self.flame_offset * 0.3),
+#             (flame_x + 3, 19 + self.flame_offset * 0.3),
+#             (flame_x, 20 + self.flame_offset * 0.2),
+#             (flame_x - 3, 19 + self.flame_offset * 0.3),
+#             (flame_x - 3, 16 + self.flame_offset * 0.3),
+#         ]
+#         pygame.draw.polygon(self.image, (255, 255, 200), core)
         
-        # === Искры ===
-        for i in range(3):
-            spark_x = flame_x + random.randint(-8, 8) + math.sin(self.frame * 5 + i) * 2
-            spark_y = 5 + random.randint(0, 10) + self.flame_offset * 0.3
-            spark_size = random.randint(1, 2)
-            pygame.draw.circle(self.image, (255, 200, 100), 
-                             (int(spark_x), int(spark_y)), spark_size)
+#         # === Искры ===
+#         for i in range(3):
+#             spark_x = flame_x + random.randint(-8, 8) + math.sin(self.frame * 5 + i) * 2
+#             spark_y = 5 + random.randint(0, 10) + self.flame_offset * 0.3
+#             spark_size = random.randint(1, 2)
+#             pygame.draw.circle(self.image, (255, 200, 100), 
+#                              (int(spark_x), int(spark_y)), spark_size)
 
 
 class Door(pygame.sprite.Sprite):
