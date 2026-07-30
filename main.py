@@ -7,8 +7,8 @@ from character_selection import show_character_select
 from player import Player
 from tilemap import load_floor_tile, load_wall_tile, draw_floor_with_camera, generate_floor_layout, FLOOR_IMAGE, \
     FLOOR_MOSS_IMAGE
-from world_map import DungeonGenerator, calc_maze_tiles, update_camera
-from objects import Torch, Door
+from world_map import DungeonGenerator, update_camera, calc_camera_viewport, scale_surface
+from objects import Door
 from pause_menu import PauseMenu
 
 
@@ -20,9 +20,8 @@ def game_loop(screen, settings, char_data):
     sw = screen.get_width()
     sh = screen.get_height()
 
-    # ===== ГЕНЕРИРУЕМ ПОДЗЕМЕЛЬЕ под текущее разрешение =====
-    WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES = calc_maze_tiles(sw, sh, TILE_SIZE)
-    dungeon = DungeonGenerator(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES)
+    # ===== ГЕНЕРИРУЕМ ПОДЗЕМЕЛЬЕ (фиксированный размер карты) =====
+    dungeon = DungeonGenerator(MAP_WIDTH, MAP_HEIGHT)
 
     # Получаем размер карты в пикселях
     map_width_px, map_height_px = dungeon.get_map_size_pixels()
@@ -45,9 +44,37 @@ def game_loop(screen, settings, char_data):
         wall_tile = pygame.Surface((TILE_SIZE, TILE_SIZE))
         wall_tile.fill((100, 100, 100))
 
-    # Камера
+    # Камера и зум (видимая область фиксирована в тайлах, не зависит от разрешения)
     camera_x = 0
     camera_y = 0
+    zoom, view_w, view_h = calc_camera_viewport(sw, sh)
+
+    def refresh_scaled_tiles():
+        return (
+            scale_surface(floor_tile, zoom),
+            scale_surface(floor_moss_tile, zoom) if floor_moss_tile else None,
+            scale_surface(wall_tile, zoom),
+        )
+
+    scaled_floor, scaled_moss, scaled_wall = refresh_scaled_tiles()
+
+    def draw_object(obj):
+        sx = (obj.rect.x - camera_x) * zoom
+        sy = (obj.rect.y - camera_y) * zoom
+        if zoom != 1.0:
+            w = max(1, int(obj.rect.width * zoom))
+            h = max(1, int(obj.rect.height * zoom))
+            screen.blit(pygame.transform.scale(obj.image, (w, h)), (sx, sy))
+        else:
+            screen.blit(obj.image, (sx, sy))
+
+    def draw_scene():
+        screen.fill((20, 20, 30))
+        draw_floor_with_camera(screen, scaled_floor, scaled_moss, floor_layout, camera_x, camera_y, zoom)
+        dungeon.draw(screen, camera_x, camera_y, scaled_wall, zoom)
+        for obj in objects_group:
+            draw_object(obj)
+        player.draw_with_camera(screen, camera_x, camera_y, zoom)
 
     # Режим отладки
     debug_mode = False
@@ -78,8 +105,8 @@ def game_loop(screen, settings, char_data):
             direction = 'right'
         else:
             direction = 'left'
-        torch = Torch(x, y, direction, wall_side)
-        objects_group.add(torch)
+        #torch = Torch(x, y, direction, wall_side)
+        #objects_group.add(torch)
 
     print("=== ЛАБИРИНТ СОЗДАН ===")
     print(f"Стен: {len(dungeon.collision_rects)}")
@@ -108,6 +135,8 @@ def game_loop(screen, settings, char_data):
                 show_settings(screen, settings)
                 screen = pygame.display.get_surface()
                 sw, sh = screen.get_size()
+                zoom, view_w, view_h = calc_camera_viewport(sw, sh)
+                scaled_floor, scaled_moss, scaled_wall = refresh_scaled_tiles()
                 pause_menu.update_screen(screen)
                 pause_menu.toggle()
             elif pause_action == "menu":
@@ -115,18 +144,7 @@ def game_loop(screen, settings, char_data):
             elif pause_action == "quit":
                 return False
 
-            screen.fill((20, 20, 30))
-            draw_floor_with_camera(screen, floor_tile, floor_moss_tile, floor_layout, camera_x, camera_y)
-            dungeon.draw(screen, camera_x, camera_y, wall_tile)
-
-            # Рисуем объекты
-            for obj in objects_group:
-                screen.blit(obj.image, (obj.rect.x - camera_x, obj.rect.y - camera_y))
-
-            if debug_mode:
-                dungeon.draw_debug(screen, camera_x, camera_y)
-
-            player.draw_with_camera(screen, camera_x, camera_y)
+            draw_scene()
             player.draw_hud(screen, font)
             pause_menu.draw()
             pygame.display.flip()
@@ -158,32 +176,22 @@ def game_loop(screen, settings, char_data):
         # Обновляем объекты (анимация факелов и дверей)
         objects_group.update(dt)
 
-        camera_x, camera_y = update_camera(player, sw, sh, map_width_px, map_height_px)
+        camera_x, camera_y = update_camera(player, view_w, view_h, map_width_px, map_height_px)
 
         # --- ОТРИСОВКА ---
-        screen.fill((20, 20, 30))
+        draw_scene()
 
-        # Рисуем пол с камерой
-        draw_floor_with_camera(screen, floor_tile, floor_moss_tile, floor_layout, camera_x, camera_y)
-
-        # Рисуем подземелье (стены)
-        dungeon.draw(screen, camera_x, camera_y, wall_tile)
-
-        # Рисуем объекты (факелы и двери)
-        for obj in objects_group:
-            screen.blit(obj.image, (obj.rect.x - camera_x, obj.rect.y - camera_y))
-
-        # Отладка
         if debug_mode:
-            dungeon.draw_debug(screen, camera_x, camera_y)
+            dungeon.draw_debug(screen, camera_x, camera_y, zoom)
 
             # Показываем информацию
             debug_font = pygame.font.Font(None, 20)
             info = [
                 f"FPS: {int(clock.get_fps())}",
+                f"Зум: {zoom:.2f}x",
                 f"Стен: {len(dungeon.collision_rects)}",
                 f"Позиция: ({player.rect.x}, {player.rect.y})",
-                f"Камера: ({camera_x}, {camera_y})",
+                f"Камера: ({int(camera_x)}, {int(camera_y)})",
                 f"Дверей: {len(doors)}",
                 f"Факелов: {len(torch_positions)}"
             ]
@@ -191,19 +199,14 @@ def game_loop(screen, settings, char_data):
                 text = debug_font.render(line, True, (255, 255, 0))
                 screen.blit(text, (10, 100 + i * 20))
 
-            # Показываем зоны взаимодействия с дверями (зелёные рамки)
             for door in doors:
                 interaction_rect = door.rect.inflate(30, 30)
                 pygame.draw.rect(screen, (0, 255, 0),
-                                 (interaction_rect.x - camera_x,
-                                  interaction_rect.y - camera_y,
-                                  interaction_rect.width,
-                                  interaction_rect.height), 1)
+                                 ((interaction_rect.x - camera_x) * zoom,
+                                  (interaction_rect.y - camera_y) * zoom,
+                                  interaction_rect.width * zoom,
+                                  interaction_rect.height * zoom), 1)
 
-        # Рисуем игрока
-        player.draw_with_camera(screen, camera_x, camera_y)
-
-        # HUD
         player.draw_hud(screen, font)
 
         # Подсказки
