@@ -105,7 +105,43 @@ def game_loop(screen, settings, char_data):
             direction = 'right'
         else:
             direction = 'left'
-        #torch = Torch(x, y, direction, wall_side)
+        #torch = Torch(x, y, direction, wall_side)import pygame
+import sys
+from settings import *
+from menu import show_menu, show_settings
+from settings import GameSettings
+from character_selection import show_character_select
+from player import Player
+from tilemap import load_floor_tile, load_wall_tile, draw_floor_with_camera, generate_floor_layout, FLOOR_IMAGE, \
+    FLOOR_MOSS_IMAGE
+from world_map import DungeonGenerator, update_camera, calc_camera_viewport, scale_surface
+from objects import Door
+from pause_menu import PauseMenu
+
+
+def game_loop(screen, settings, char_data):
+    clock = pygame.time.Clock()
+    font = pygame.font.Font(None, 32)
+    hint_font = pygame.font.Font(None, 24)
+
+    sw = screen.get_width()
+    sh = screen.get_height()
+
+    # ===== ГЕНЕРИРУЕМ ПОДЗЕМЕЛЬЕ (фиксированный размер карты) =====
+    dungeon = DungeonGenerator(MAP_WIDTH, MAP_HEIGHT)
+
+    # Получаем размер карты в пикселях
+    map_width_px, map_height_px = dungeon.get_map_size_pixels()
+
+    # Стартовая позиция игрока
+    start_x, start_y = dungeon.get_player_start_position()
+    player = Player(start_x, start_y, char_data)
+
+    # Загружаем текстуры
+    floor_tile = load_floor_tile(FLOOR_IMAGE)
+    floor_moss_tile = load_floor_tile(FLOOR_MOSS_IMAGE)
+    floor_layout = generate_floor_layout(map_width_px, map_height_px, TILE_SIZE, moss_chance=0.20)
+
         #objects_group.add(torch)
 
     print("=== ЛАБИРИНТ СОЗДАН ===")
