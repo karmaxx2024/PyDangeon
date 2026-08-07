@@ -171,7 +171,7 @@ class PauseMenu:
 
         # Подсказка
         hint = self.hint_font.render(
-            "мышь — выбор    Enter — выбрать    ESC — продолжить",
+            "МЫШЬ — выбор    ENTER — выбрать    ESC — продолжить",
             True,
             (150, 150, 150),
         )
