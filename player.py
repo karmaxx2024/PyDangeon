@@ -37,7 +37,7 @@ class Player:
 
         # Загружаем спрайт
         image_path = char_data.get("image")
-        self.image = _load_sprite(image_path, 96) if image_path else None
+        self.image = _load_sprite(image_path, 105) if image_path else None
         self.size = 16  # половина спрайта для отрисовки
 
         if self.image:
