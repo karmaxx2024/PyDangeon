@@ -35,6 +35,9 @@ class Player:
         self.color = char_data["color"]
         self.name = char_data["name"]
 
+        # Сохраняем путь к изображению для сериализации
+        self.image_path = char_data.get("image")   # <-- НОВАЯ СТРОКА
+
         # Загружаем спрайт
         image_path = char_data.get("image")
         self.image = _load_sprite(image_path, 105) if image_path else None
@@ -57,7 +60,7 @@ class Player:
         Старый метод - только для границ экрана (оставлен для совместимости)
         Используется только в меню и других местах, где нет карты мира
         """
-        keys = pygame.key.get_pressed()  # <-- ЭТО СТРОКА БЫЛА ПРОПУЩЕНА!
+        keys = pygame.key.get_pressed()
 
         dx = 0
         dy = 0
@@ -92,7 +95,7 @@ class Player:
         """Движение с коллизиями со стенами и дверями (с поддержкой паузы)"""
         if is_paused:
             return  # Не двигаемся на паузе
-        
+
         # Вычисляем направление
         dx = 0
         dy = 0
@@ -115,20 +118,16 @@ class Player:
         move_x = dx * self.speed * dt * 60
         move_y = dy * self.speed * dt * 60
 
-        # Сохраняем старую позицию для отката
-        old_x = self.x
-        old_y = self.y
-
         # === ДВИЖЕНИЕ ПО X ===
         self.x += move_x
         self.rect.centerx = int(self.x)
-        
+
         # Проверка коллизий со стенами по X
         if world_map.check_collision(self.rect, 0, 0):
             self.x -= move_x
             self.rect.centerx = int(self.x)
-        
-        # === НОВОЕ: Проверка коллизий с дверями по X ===
+
+        # Проверка коллизий с дверями по X
         if doors:
             for door in doors:
                 if door.is_blocked and door.rect.colliderect(self.rect):
@@ -142,13 +141,13 @@ class Player:
         # === ДВИЖЕНИЕ ПО Y ===
         self.y += move_y
         self.rect.centery = int(self.y)
-        
+
         # Проверка коллизий со стенами по Y
         if world_map.check_collision(self.rect, 0, 0):
             self.y -= move_y
             self.rect.centery = int(self.y)
-        
-        # === НОВОЕ: Проверка коллизий с дверями по Y ===
+
+        # Проверка коллизий с дверями по Y
         if doors:
             for door in doors:
                 if door.is_blocked and door.rect.colliderect(self.rect):
