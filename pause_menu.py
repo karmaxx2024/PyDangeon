@@ -14,7 +14,7 @@ class PauseMenu:
         self.screen = screen
         self.is_paused = False
         self.selected_option = 0
-        self.options = ["Продолжить", "Настройки", "В главное меню", "Выход"]
+        self.options = ["Продолжить", "Сохранить", "Настройки", "В главное меню", "Выход"]  # <-- добавлен "Сохранить"
         self.option_rects = []
         
         # Для анимации переливания
@@ -42,6 +42,19 @@ class PauseMenu:
         self.overlay.set_alpha(180)
         self.overlay.fill((0, 0, 0))
 
+        # ===== ЗАГРУЗКА КАСТОМНОГО КУРСОРА (как в menu.py и character_selection.py) =====
+        try:
+            self.cursor_hover = pygame.image.load("assets/images/menu/mouse2.png").convert_alpha()
+            self.cursor_hover = pygame.transform.smoothscale(self.cursor_hover, (64, 64))
+            self.cursor = pygame.image.load("assets/images/menu/mouse1.png").convert_alpha()
+            self.cursor = pygame.transform.smoothscale(self.cursor, (64, 64))
+        except Exception as e:
+            print(f"Ошибка загрузки курсора в PauseMenu: {e}")
+            self.cursor = None
+            self.cursor_hover = None
+        pygame.mouse.set_visible(False)   # скрываем системный курсор
+        # ===========================================
+
         print("✓ PauseMenu готов")
 
     def update_screen(self, screen):
@@ -66,7 +79,7 @@ class PauseMenu:
         """
         Обрабатывает ввод в меню паузы.
         Returns:
-            None, "resume", "settings", "menu", "quit"
+            None, "resume", "save", "settings", "menu", "quit"
         """
         if not self.is_paused:
             return None
@@ -86,10 +99,12 @@ class PauseMenu:
                     if self.selected_option == 0:
                         return "resume"
                     elif self.selected_option == 1:
-                        return "settings"
+                        return "save"          # <-- добавлен возврат "save"
                     elif self.selected_option == 2:
-                        return "menu"
+                        return "settings"
                     elif self.selected_option == 3:
+                        return "menu"
+                    elif self.selected_option == 4:
                         return "quit"
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -101,21 +116,19 @@ class PauseMenu:
                             if i == 0:
                                 return "resume"
                             elif i == 1:
-                                return "settings"
+                                return "save"          # <-- добавлен возврат "save"
                             elif i == 2:
-                                return "menu"
+                                return "settings"
                             elif i == 3:
+                                return "menu"
+                            elif i == 4:
                                 return "quit"
 
         return None
 
     def get_rainbow_color(self):
         """Возвращает цвет переливания: красный -> оранжевый -> жёлтый"""
-        # Используем только диапазон оттенков 0.0 (красный) до 0.16 (жёлтый)
-        # Проходя через оранжевый (~0.08)
         hue = 0.16 * (0.5 + 0.5 * __import__('math').sin(self.hover_timer * 2.0))
-        # hue будет колебаться между 0.0 (красный) и 0.16 (жёлтый) через оранжевый
-        
         r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
         return (int(r * 255), int(g * 255), int(b * 255))
 
@@ -177,3 +190,12 @@ class PauseMenu:
         )
         hint_rect = hint.get_rect(center=(sw // 2, sh - 50))
         self.screen.blit(hint, hint_rect)
+
+        # ===== ОТРИСОВКА КАСТОМНОГО КУРСОРА (как в menu.py и character_selection.py) =====
+        if self.cursor and self.cursor_hover:
+            # Если мышь наведена на любой пункт меню, показываем курсор-hover, иначе обычный
+            if mouse_over_any:
+                self.screen.blit(self.cursor_hover, (mouse_pos[0], mouse_pos[1]))
+            else:
+                self.screen.blit(self.cursor, (mouse_pos[0], mouse_pos[1]))
+        # ======================================================================
