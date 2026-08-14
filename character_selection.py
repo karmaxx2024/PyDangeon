@@ -46,6 +46,18 @@ class CharacterSelect:
         self.clock = pygame.time.Clock()
         self.selected = 0
 
+        # <-- Загрузка кастомного курсора (как в menu.py)
+        try:
+            self.cursor_hover = pygame.image.load("assets/images/menu/mouse2.png").convert_alpha()
+            self.cursor_hover = pygame.transform.smoothscale(self.cursor_hover, (64, 64))
+            self.cursor = pygame.image.load("assets/images/menu/mouse1.png").convert_alpha()
+            self.cursor = pygame.transform.smoothscale(self.cursor, (64, 64))
+        except Exception as e:
+            print(f"Ошибка загрузки курсора: {e}")
+            self.cursor = None
+            self.cursor_hover = None
+        pygame.mouse.set_visible(False)  # <-- скрываем системный курсор
+
         base_path = os.path.join("assets", "fonts")
 
         title_path = os.path.join(base_path, "PlayfairDisplaySC-Bold.ttf")
@@ -119,14 +131,11 @@ class CharacterSelect:
     def _draw_card(self, char, cx, cy, card_w, card_h, is_selected):
         border_color = GOLD if is_selected else (80, 80, 80)
         alpha = 220 if is_selected else 140
-        radius = 20  # увеличенный радиус скругления
+        radius = 20
 
         card = pygame.Surface((card_w, card_h), pygame.SRCALPHA)
 
-        # Заливка фона со скруглёнными углами
         pygame.draw.rect(card, (20, 20, 20, alpha), (0, 0, card_w, card_h), border_radius=radius)
-
-        # Рамка со скруглёнными углами
         pygame.draw.rect(card, border_color, (0, 0, card_w, card_h), 3, border_radius=radius)
 
         self.screen.blit(card, (cx, cy))
@@ -184,6 +193,7 @@ class CharacterSelect:
         cards_y = sh // 2 - card_h // 2 + 20
 
         while True:
+            # --- Отрисовка фона ---
             if self.frames:
                 frame = self.frames[self.current_frame]
                 frame = pygame.transform.scale(frame, (sw, sh))
@@ -202,8 +212,10 @@ class CharacterSelect:
             title_rect = title_surf.get_rect(centerx=sw // 2, top=30)
             self.screen.blit(title_surf, title_rect)
 
+            # --- Получение позиции мыши ---
             mouse_x, mouse_y = pygame.mouse.get_pos()
 
+            # --- Отрисовка карточек и проверка наведения ---
             for i, char in enumerate(CHARACTERS):
                 cx = start_x + i * (card_w + gap)
                 card_rect = pygame.Rect(cx, cards_y, card_w, card_h)
@@ -211,12 +223,13 @@ class CharacterSelect:
                     self.selected = i
                 self._draw_card(char, cx, cards_y, card_w, card_h, i == self.selected)
 
+            # --- Стрелки ---
             arrow_left = self.name_font.render("<", True, GOLD if self.selected > 0 else (60, 60, 60))
             arrow_right = self.name_font.render(">", True, GOLD if self.selected < len(CHARACTERS) - 1 else (60, 60, 60))
             self.screen.blit(arrow_left, (start_x - 50, cards_y + card_h // 2 - 20))
             self.screen.blit(arrow_right, (start_x + total_w + 16, cards_y + card_h // 2 - 20))
 
-            # Кнопка "НАЗАД" с полностью скруглёнными углами (капсула)
+            # --- Кнопка "НАЗАД" ---
             btn_w, btn_h = 240, 60
             btn_x = sw // 2 - btn_w // 2
             btn_y = cards_y + card_h + 18
@@ -225,23 +238,18 @@ class CharacterSelect:
             hovered = back_button_rect.collidepoint(mouse_x, mouse_y)
 
             button_surf = pygame.Surface((btn_w, btn_h), pygame.SRCALPHA)
-
             bg_color = (20, 20, 25, 180) if not hovered else (30, 30, 35, 220)
             border_color = GOLD if hovered else (120, 120, 120)
-            btn_radius = 30  # половина высоты для идеальной капсулы
-
-            # Заливка фона со скруглением
+            btn_radius = 30
             pygame.draw.rect(button_surf, bg_color, (0, 0, btn_w, btn_h), border_radius=btn_radius)
-            # Рамка со скруглением
             pygame.draw.rect(button_surf, border_color, (0, 0, btn_w, btn_h), 3, border_radius=btn_radius)
-
             text_color = WHITE if hovered else (180, 180, 180)
             back_text = self.name_font.render(" < НАЗАД", True, text_color)
             text_rect = back_text.get_rect(center=(btn_w // 2, btn_h // 2))
             button_surf.blit(back_text, text_rect)
-
             self.screen.blit(button_surf, (btn_x, btn_y))
 
+            # --- Обработка событий ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return None
@@ -262,6 +270,25 @@ class CharacterSelect:
                             self.selected = i
                     if back_button_rect.collidepoint(event.pos):
                         return None
+
+            # <-- Отрисовка кастомного курсора поверх всего (как в menu.py) -->
+            if self.cursor and self.cursor_hover:
+                # Проверяем, находится ли мышь над любой карточкой или кнопкой "Назад"
+                hover_any = False
+                for i in range(len(CHARACTERS)):
+                    cx = start_x + i * (card_w + gap)
+                    card_rect = pygame.Rect(cx, cards_y, card_w, card_h)
+                    if card_rect.collidepoint(mouse_x, mouse_y):
+                        hover_any = True
+                        break
+                if back_button_rect.collidepoint(mouse_x, mouse_y):
+                    hover_any = True
+
+                if hover_any:
+                    self.screen.blit(self.cursor_hover, (mouse_x, mouse_y))
+                else:
+                    self.screen.blit(self.cursor, (mouse_x, mouse_y))
+            # -------------------------------------------
 
             pygame.display.flip()
             self.clock.tick(60)
