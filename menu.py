@@ -2,6 +2,7 @@ import pygame
 import os
 from settings import *
 
+
 # ================= ГЛАВНОЕ МЕНЮ =================
 class Menu:
     def __init__(self, screen, game_settings):
@@ -29,18 +30,24 @@ class Menu:
 
         self.hint_font = pygame.font.Font(None, 24)
 
+        self.cursor = pygame.image.load("assets/images/menu/mouse2.png").convert_alpha()
+        self.cursor = pygame.transform.smoothscale(self.cursor, (64, 64))
+
+        self.cursor_hover = pygame.image.load("assets/images/menu/mouse1.png").convert_alpha()
+        self.cursor_hover = pygame.transform.smoothscale(self.cursor_hover, (64, 64))
+
+        pygame.mouse.set_visible(False)
+
         # === Загрузка звуков ===
-        self.sound_button = None      # push_button.wav - эффект нажатия
-        self.music_loaded = False     # background_menu.wav - фоновая музыка
+        self.sound_button = None
+        self.music_loaded = False
 
         try:
-            # Инициализация микшера (если не был инициализирован глобально)
             if not pygame.mixer.get_init():
                 pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
-            
+
             sounds_path = os.path.join("assets", "sounds", "menu")
-            
-            # 🔘 Звук кнопки (короткий эффект)
+
             button_path = os.path.join(sounds_path, "push_button.wav")
             if os.path.exists(button_path):
                 self.sound_button = pygame.mixer.Sound(button_path)
@@ -48,24 +55,23 @@ class Menu:
                 print(f"✓ Загружен звук кнопки: {button_path}")
             else:
                 print(f"⚠ Звук кнопки не найден: {button_path}")
-            
-            # 🎵 Фоновая музыка (зацикленная)
+
             music_path = os.path.join(sounds_path, "background_menu.wav")
             if os.path.exists(music_path):
                 pygame.mixer.music.load(music_path)
                 pygame.mixer.music.set_volume(self.settings.master_volume * self.settings.music_volume)
-                pygame.mixer.music.play(loops=-1)  # -1 = бесконечный цикл
+                pygame.mixer.music.play(loops=-1)
                 self.music_loaded = True
                 print(f"✓ Запущена фоновая музыка: {music_path}")
             else:
                 print(f"⚠ Фоновая музыка не найдена: {music_path}")
-                
+
         except pygame.error as e:
             print(f"❌ Ошибка SDL_mixer: {e}")
         except Exception as e:
             print(f"❌ Ошибка загрузки звуков: {type(e).__name__}: {e}")
 
-        # Загружаем видео (кадры будем масштабировать на лету)
+        # Загружаем видео
         self.frames = []
         video_path = os.path.join("assets", "videos", "menu_bg.mp4")
         try:
@@ -86,7 +92,6 @@ class Menu:
             print(f"Ошибка видео: {e}")
 
     def _update_sound_volumes(self):
-        """Применяет текущие настройки громкости к звукам"""
         vol = self.settings.master_volume * self.settings.music_volume
         if self.sound_button:
             self.sound_button.set_volume(vol)
@@ -94,12 +99,11 @@ class Menu:
             pygame.mixer.music.set_volume(vol)
 
     def _play_button_sound(self):
-        """Воспроизводит звук кнопки с проверкой"""
         if self.sound_button:
             try:
                 self.sound_button.play()
             except pygame.error:
-                pass  # Игнорируем ошибки воспроизведения
+                pass
 
     def draw_button(self, text, x, y, width, height, is_selected):
         if is_selected:
@@ -124,7 +128,6 @@ class Menu:
         screen_h = self.screen.get_height()
 
         while self.running:
-            # Отрисовка видеофона
             if self.frames:
                 self.current_frame = (self.current_frame + 1) % len(self.frames)
                 frame = self.frames[self.current_frame]
@@ -156,13 +159,16 @@ class Menu:
             start_y = screen_h // 2 + 40
 
             mouse_x, mouse_y = pygame.mouse.get_pos()
+            hover = True
             for i in range(len(self.menu_items)):
                 y = start_y + i * (button_h + 15)
                 button_rect = pygame.Rect(start_x, y, button_w, button_h)
+
                 if button_rect.collidepoint(mouse_x, mouse_y):
+                    hover = False
                     if self.selected != i:
                         self.selected = i
-                        self._play_button_sound()  # Звук при наведении
+                        self._play_button_sound()
 
             for i, item in enumerate(self.menu_items):
                 y = start_y + i * (button_h + 15)
@@ -177,7 +183,7 @@ class Menu:
                     elif event.key == pygame.K_DOWN:
                         self.selected = (self.selected + 1) % len(self.menu_items)
                     elif event.key == pygame.K_RETURN:
-                        self._play_button_sound()  # Звук при подтверждении
+                        self._play_button_sound()
                         return self.get_action()
                     elif event.key == pygame.K_ESCAPE:
                         return "exit"
@@ -187,8 +193,13 @@ class Menu:
                             y = start_y + i * (button_h + 15)
                             button_rect = pygame.Rect(start_x, y, button_w, button_h)
                             if button_rect.collidepoint(event.pos):
-                                self._play_button_sound()  # Звук при клике
+                                self._play_button_sound()
                                 return self.get_action(i)
+
+            if hover:
+                self.screen.blit(self.cursor_hover, (mouse_x, mouse_y))
+            else:
+                self.screen.blit(self.cursor, (mouse_x, mouse_y))
 
             pygame.display.flip()
             self.clock.tick(30)
@@ -221,6 +232,19 @@ class SettingsMenu:
         self.running = True
         self.selected_option = 0
         self.brightness_overlay = None
+
+        # <-- Загрузка кастомного курсора (как в главном меню)
+        try:
+            self.cursor_hover = pygame.image.load("assets/images/menu/mouse2.png").convert_alpha()
+            self.cursor_hover = pygame.transform.smoothscale(self.cursor_hover, (64, 64))
+            self.cursor = pygame.image.load("assets/images/menu/mouse1.png").convert_alpha()
+            self.cursor = pygame.transform.smoothscale(self.cursor, (64, 64))
+        except Exception as e:
+            print(f"Ошибка загрузки курсора: {e}")
+            self.cursor = None
+            self.cursor_hover = None
+        pygame.mouse.set_visible(False)   # <-- скрываем системный курсор
+        # ------------------------------------------
 
         # Шрифты
         base_path = os.path.join("assets", "fonts")
@@ -285,14 +309,15 @@ class SettingsMenu:
             {"type": "slider", "label": "FPS", "min": 15, "max": 120, "value": self.settings.fps_limit, "step": 1},
             {"type": "choice", "label": "Разрешение", "options": res_texts, "value_index": current_res_index},
             {"type": "slider", "label": "Яркость", "min": 0, "max": 100, "value": brightness, "step": 1},
-            {"type": "slider", "label": "Общий звук", "min": 0, "max": 100, "value": int(self.settings.master_volume * 100), "step": 1},
-            {"type": "slider", "label": "Музыка", "min": 0, "max": 100, "value": int(self.settings.music_volume * 100), "step": 1},
+            {"type": "slider", "label": "Общий звук", "min": 0, "max": 100,
+             "value": int(self.settings.master_volume * 100), "step": 1},
+            {"type": "slider", "label": "Музыка", "min": 0, "max": 100, "value": int(self.settings.music_volume * 100),
+             "step": 1},
             {"type": "toggle", "label": "Полный экран", "value": self.settings.fullscreen},
             {"type": "button", "label": "Назад", "action": "back"}
         ]
 
     def _update_sound_volumes(self):
-        """Применяет настройки громкости ко всем звукам"""
         vol = self.settings.master_volume * self.settings.music_volume
         if pygame.mixer.get_init():
             pygame.mixer.music.set_volume(vol)
@@ -324,7 +349,6 @@ class SettingsMenu:
             self.update_brightness()
 
     def update_brightness(self):
-        """Создаёт полупрозрачный оверлей для регулировки яркости"""
         if hasattr(self.settings, 'brightness'):
             brightness = self.settings.brightness
             alpha = int((100 - brightness) * 2.55)
@@ -360,7 +384,7 @@ class SettingsMenu:
     def run(self):
         screen_w = self.screen.get_width()
         screen_h = self.screen.get_height()
-        
+
         if not hasattr(self.settings, 'brightness'):
             self.settings.brightness = 100
         self.update_brightness()
@@ -500,6 +524,56 @@ class SettingsMenu:
                         slider_x = start_x + 320
                         slider_width = 200
                         self._set_slider_from_mouse(i, mouse_x, slider_x, slider_width)
+
+        # <-- Отрисовка кастомного курсора (как в главном меню) -->
+        if self.cursor and self.cursor_hover:
+            # Проверяем, находится ли мышь над любым интерактивным элементом
+            hover_any = False
+
+            # Кнопка "Назад"
+            for i, item in enumerate(self.menu_items):
+                if item["type"] == "button":
+                    btn_w, btn_h = 200, 50
+                    btn_x = screen_w // 2 - btn_w // 2
+                    btn_y = start_y + i * item_height + 10
+                    btn_rect = pygame.Rect(btn_x, btn_y, btn_w, btn_h)
+                    if btn_rect.collidepoint(mouse_x, mouse_y):
+                        hover_any = True
+                        break
+                elif item["type"] == "slider":
+                    y = start_y + i * item_height
+                    slider_x = start_x + 320
+                    slider_width = 200
+                    # Увеличим область для удобства (полоса + ручка)
+                    slider_rect = pygame.Rect(slider_x - 10, y + 10, slider_width + 20, 20)
+                    if slider_rect.collidepoint(mouse_x, mouse_y):
+                        hover_any = True
+                        break
+                elif item["type"] == "choice":
+                    y = start_y + i * item_height
+                    left_rect = pygame.Rect(start_x + 210, y, 20, 30)
+                    right_rect = pygame.Rect(start_x + 370, y, 20, 30)
+                    if left_rect.collidepoint(mouse_x, mouse_y) or right_rect.collidepoint(mouse_x, mouse_y):
+                        hover_any = True
+                        break
+                elif item["type"] == "toggle":
+                    y = start_y + i * item_height
+                    # Используем сохранённый rect из self.toggle_rects
+                    if i in self.toggle_rects:
+                        if self.toggle_rects[i].collidepoint(mouse_x, mouse_y):
+                            hover_any = True
+                            break
+                    else:  # fallback
+                        toggle_rect = pygame.Rect(start_x + 250, y, 60, 30)
+                        if toggle_rect.collidepoint(mouse_x, mouse_y):
+                            hover_any = True
+                            break
+
+            if hover_any:
+                self.screen.blit(self.cursor_hover, (mouse_x, mouse_y))
+            else:
+                self.screen.blit(self.cursor, (mouse_x, mouse_y))
+        # -----------------------------------------------
 
         pygame.display.flip()
         self.clock.tick(30)
