@@ -3,6 +3,9 @@ import random
 from settings import TILE_SIZE, CAMERA_VIEW_TILES_W
 from main_generator import MazeGenerator
 
+# ===== КОНСТАНТА ТУМАНА =====
+FOG_RADIUS_TILES = 3   # видимость в тайлах от игрока (увеличил до 3 для комфорта)
+
 
 def calc_camera_viewport(screen_w, screen_h, tile_size=TILE_SIZE):
     """Зум и размер видимой области в мировых пикселях (не зависит от размера карты)."""
@@ -82,6 +85,9 @@ class DungeonGenerator:
         self.maze_gen.generate()
         self._build_collision_from_maze()
 
+        # ===== НОВОЕ: массив посещённых тайлов =====
+        self.visited = [[False] * self.width for _ in range(self.height)]
+
         print("🏰 Лабиринт сгенерирован")
         print(f"✓ Стен для коллизий: {len(self.collision_rects)}")
 
@@ -121,8 +127,7 @@ class DungeonGenerator:
 
         # Настройки размеров комнат
         SMALL_MIN, SMALL_MAX = 4, 6  # маленькие комнаты
-        MEDIUM_MIN, MEDIUM_MAX = 7, 10  # средние комнатыimport random
-
+        MEDIUM_MIN, MEDIUM_MAX = 7, 10  # средние комнаты
         BIG_MIN, BIG_MAX = 11, 15  # большие комнаты
 
         # Создаём границы карты (внешние стены)
@@ -428,16 +433,83 @@ class DungeonGenerator:
     def get_player_start_position(self):
         for y in range(len(self.maze_gen.maze)):
             for x in range(len(self.maze_gen.maze[y])):
-
                 if self.maze_gen.maze[y][x] == False:
                     return (
                         x * TILE_SIZE + TILE_SIZE // 2,
                         y * TILE_SIZE + TILE_SIZE // 2
                     )
-
         # запасной вариант
-
         return (
             TILE_SIZE + TILE_SIZE // 2,
             TILE_SIZE + TILE_SIZE // 2
         )
+
+    # ===== НОВЫЙ МЕТОД ОБНОВЛЕНИЯ ВИДИМОСТИ =====
+    def update_visited(self, player, radius_tiles):
+        """Отмечает все тайлы в радиусе видимости как посещённые."""
+        px = player.rect.centerx
+        py = player.rect.centery
+        radius_px = radius_tiles * self.tile_size
+        # Перебираем все тайлы, но для оптимизации можно ограничиться квадратом вокруг игрока
+        for y in range(self.height):
+            for x in range(self.width):
+                tx = x * self.tile_size + self.tile_size // 2
+                ty = y * self.tile_size + self.tile_size // 2
+                dist = ((px - tx) ** 2 + (py - ty) ** 2) ** 0.5
+                if dist <= radius_px:
+                    self.visited[y][x] = True
+
+    # ===== НОВЫЙ МЕТОД ДЛЯ ТУМАНА ВОЙНЫ (заменяет старый) =====
+    def draw_fog(self, screen, player, camera_x, camera_y, zoom, debug_mode=False):
+        """
+        Рисует туман войны:
+        - чёрный – не посещён,
+        - серый полупрозрачный – посещён, но не в видимости,
+        - прозрачный – в видимости.
+        Если debug_mode == True, туман не рисуется (вся карта видна).
+        """
+        if debug_mode:
+            return
+
+        # Поверхность тумана с альфа-каналом
+        fog_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        fog_surface.fill((0, 0, 0, 0))  # полностью прозрачная по умолчанию
+
+        # Параметры видимости
+        radius_px = FOG_RADIUS_TILES * self.tile_size * zoom
+        player_center_x = (player.rect.centerx - camera_x) * zoom
+        player_center_y = (player.rect.centery - camera_y) * zoom
+
+        tile_size_scaled = int(self.tile_size * zoom)
+
+        # Определяем границы видимых тайлов (с запасом, чтобы не рисовать лишнее)
+        start_x = int(camera_x // self.tile_size) - 1
+        start_y = int(camera_y // self.tile_size) - 1
+        end_x = int((camera_x + screen.get_width() / zoom) // self.tile_size) + 2
+        end_y = int((camera_y + screen.get_height() / zoom) // self.tile_size) + 2
+
+        for y in range(max(0, start_y), min(self.height, end_y)):
+            for x in range(max(0, start_x), min(self.width, end_x)):
+                # Экранируем невидимые
+                if not self.visited[y][x]:
+                    # Непосещённый – чёрный
+                    screen_x = (x * self.tile_size - camera_x) * zoom
+                    screen_y = (y * self.tile_size - camera_y) * zoom
+                    pygame.draw.rect(fog_surface, (0, 0, 0, 255),
+                                     (screen_x, screen_y, tile_size_scaled, tile_size_scaled))
+                else:
+                    # Посещён – проверяем, в видимости ли сейчас
+                    tx = (x * self.tile_size + self.tile_size // 2 - camera_x) * zoom
+                    ty = (y * self.tile_size + self.tile_size // 2 - camera_y) * zoom
+                    dist = ((tx - player_center_x) ** 2 + (ty - player_center_y) ** 2) ** 0.5
+                    if dist > radius_px:
+                        # Вне видимости – серый полупрозрачный
+                        screen_x = (x * self.tile_size - camera_x) * zoom
+                        screen_y = (y * self.tile_size - camera_y) * zoom
+                        # Серый с альфой 180 (можно регулировать)
+                        pygame.draw.rect(fog_surface, (50, 50, 50, 180),
+                                         (screen_x, screen_y, tile_size_scaled, tile_size_scaled))
+                    # else: в видимости – ничего не рисуем (прозрачный)
+
+        # Накладываем туман поверх сцены
+        screen.blit(fog_surface, (0, 0))
