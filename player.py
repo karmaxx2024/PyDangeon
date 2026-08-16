@@ -32,6 +32,13 @@ class Player:
         self.max_hp = char_data["hp"]
         self.hp = char_data["hp"]
         self.attack = char_data["attack"]
+
+        # ===== БОЕВАЯ СИСТЕМА =====
+        self.attack_range = 60
+        self.attack_cooldown = 0.35
+        self.attack_timer = 0
+        self.facing = "down"
+        self.attack_effect_timer = 0
         self.color = char_data["color"]
         self.name = char_data["name"]
 
@@ -67,12 +74,19 @@ class Player:
 
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             dx = -1
+            self.facing = "left"
+
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             dx = 1
+            self.facing = "right"
+
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             dy = -1
+            self.facing = "up"
+
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             dy = 1
+            self.facing = "down"
 
         # Нормализация диагонального движения
         if dx != 0 and dy != 0:
@@ -96,18 +110,31 @@ class Player:
         if is_paused:
             return  # Не двигаемся на паузе
 
+        if self.attack_timer > 0:
+            self.attack_timer -= dt
+
+        if self.attack_effect_timer > 0:
+            self.attack_effect_timer -= dt
+
         # Вычисляем направление
         dx = 0
         dy = 0
 
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             dx = -1
+            self.facing = "left"
+
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             dx = 1
+            self.facing = "right"
+
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             dy = -1
+            self.facing = "up"
+
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             dy = 1
+            self.facing = "down"
 
         # Нормализуем диагональное движение
         if dx != 0 and dy != 0:
@@ -232,6 +259,51 @@ class Player:
         if self.hp > self.max_hp:
             self.hp = self.max_hp
         print(f"{self.name} вылечился на {amount}. HP: {self.hp}/{self.max_hp}")
+
+
+    # =====================================================
+    # АТАКА МОБОВ
+    # =====================================================
+
+    def attack_mobs(self, mobs):
+
+        if self.attack_timer > 0:
+            return
+
+        attacked = False
+
+        for mob in mobs:
+
+            if not mob.is_alive():
+                continue
+
+            dx = mob.x - self.x
+            dy = mob.y - self.y
+
+            distance = (dx * dx + dy * dy) ** 0.5
+
+            if distance <= self.attack_range:
+
+                if self.facing == "up" and dy > 0:
+                    continue
+
+                if self.facing == "down" and dy < 0:
+                    continue
+
+                if self.facing == "left" and dx > 0:
+                    continue
+
+                if self.facing == "right" and dx < 0:
+                    continue
+
+                mob.take_damage(self.attack)
+                attacked = True
+
+        if attacked:
+            self.attack_timer = self.attack_cooldown
+            self.attack_effect_timer = 0.1
+
+            print(f"{self.name} атакует! Урон: {self.attack}")
 
     def get_rect(self):
         """Возвращает прямоугольник игрока для коллизий"""
