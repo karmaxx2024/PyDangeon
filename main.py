@@ -13,6 +13,8 @@ from world_map import DungeonGenerator, update_camera, calc_camera_viewport, sca
 from objects import Door
 from pause_menu import PauseMenu
 from load_save_menu import LoadSaveMenu, serialize_game, deserialize_game
+from inventory import Inventory
+from mob import Mob
 
 # ============================================================
 #                   ОСНОВНОЙ ИГРОВОЙ ЦИКЛ
@@ -39,6 +41,10 @@ def game_loop(screen, settings, char_data=None, loaded_player=None, loaded_dunge
         player = loaded_player
         dungeon = loaded_dungeon
         doors = loaded_doors
+
+        # Мобы (пока не сохраняются)
+        mobs = []
+
         # Загружаем текстуры заново (они не сохраняются)
         floor_tile = load_floor_tile(FLOOR_IMAGE)
         floor_moss_tile = load_floor_tile(FLOOR_MOSS_IMAGE)
@@ -70,6 +76,13 @@ def game_loop(screen, settings, char_data=None, loaded_player=None, loaded_dunge
         map_width_px, map_height_px = dungeon.get_map_size_pixels()
         start_x, start_y = dungeon.get_player_start_position()
         player = Player(start_x, start_y, char_data)
+
+        # ===== МОБЫ =====
+        mobs = [
+            Mob(start_x + 180, start_y, "goblin"),
+            Mob(start_x - 220, start_y + 80, "goblin"),
+            Mob(start_x + 300, start_y + 150, "orc")
+        ]
 
         floor_tile = load_floor_tile(FLOOR_IMAGE)
         floor_moss_tile = load_floor_tile(FLOOR_MOSS_IMAGE)
@@ -126,11 +139,18 @@ def game_loop(screen, settings, char_data=None, loaded_player=None, loaded_dunge
         dungeon.draw(screen, camera_x, camera_y, scaled_wall, zoom)
         for obj in objects_group:
             draw_object(obj)
+
+        for mob in mobs:
+            if mob.is_alive():
+                mob.draw_with_camera(screen, camera_x, camera_y, zoom)
+
         player.draw_with_camera(screen, camera_x, camera_y, zoom)
         dungeon.draw_fog(screen, player, camera_x, camera_y, zoom, debug_mode)
 
     debug_mode = False
     pause_menu = PauseMenu(screen)
+    inventory = Inventory(screen)
+    print("🎒 INVENTORY CREATED:", inventory)
 
     # ---------- ФУНКЦИЯ СОХРАНЕНИЯ ----------
     def quick_save(filename="autosave"):
@@ -186,6 +206,10 @@ def game_loop(screen, settings, char_data=None, loaded_player=None, loaded_dunge
 
         # ---------- ОБРАБОТКА СОБЫТИЙ (НЕ ПАУЗА) ----------
         for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1 and not inventory.opened:
+                    player.attack_mobs(mobs)
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     pause_menu.toggle()
@@ -194,6 +218,10 @@ def game_loop(screen, settings, char_data=None, loaded_player=None, loaded_dunge
                 elif event.key == pygame.K_F5:
                     # Быстрое сохранение
                     quick_save("autosave")
+                #elif event.key == pygame.K_TAB:
+                    #print("⌨ TAB PRESSED")
+                    #inventory.toggle()
+                    #print("🎒 INVENTORY STATE:", inventory.opened)
                 elif event.key == pygame.K_e:
                     for door in doors:
                         interaction_rect = door.rect.inflate(30, 30)
@@ -201,11 +229,28 @@ def game_loop(screen, settings, char_data=None, loaded_player=None, loaded_dunge
                             door.toggle()
                             break
 
+        # ---------- ИНВЕНТАРЬ ----------
+        print("🔎 До handle_input opened =", inventory.opened)
+        inventory.handle_input(events)
+        print("🔎 После handle_input opened =", inventory.opened)
+
+        # Управление курсором для инвентаря
+        if inventory.opened:
+            pygame.mouse.set_visible(False)
         # ---------- ОБНОВЛЕНИЕ ----------
         keys = pygame.key.get_pressed()
-        player.update_with_collision(dt, keys, dungeon, doors)
+        if not inventory.opened:
+            player.update_with_collision(dt, keys, dungeon, doors)
         dungeon.update_visited(player, FOG_RADIUS_TILES)
         objects_group.update(dt)
+
+        for mob in mobs:
+            mob.update(dt, player, dungeon)
+
+        # Проверка смерти игрока
+        if not player.is_alive():
+            return "dead"
+
         camera_x, camera_y = update_camera(player, view_w, view_h, map_width_px, map_height_px)
 
         # ---------- ОТРИСОВКА ----------
@@ -229,7 +274,7 @@ def game_loop(screen, settings, char_data=None, loaded_player=None, loaded_dunge
         player.draw_hud(screen, font)
 
         # Подсказки
-        hint_text = "WASD / стрелки — движение    ESC — пауза    F3 — отладка    E — дверь    F5 — сохранить"
+        hint_text = "WASD / стрелки — движение    ЛКМ — атака    ESC — пауза    F3 — отладка    E — дверь    F5 — сохранить"
         hint = hint_font.render(hint_text, True, (150, 150, 150))
         screen.blit(hint, (sw // 2 - hint.get_width() // 2, sh - 30))
 
@@ -238,9 +283,44 @@ def game_loop(screen, settings, char_data=None, loaded_player=None, loaded_dunge
             door_hint = hint_font.render("Нажми E, чтобы открыть дверь", True, (255, 255, 100))
             screen.blit(door_hint, (sw // 2 - door_hint.get_width() // 2, sh - 60))
 
+        print("🖼 inventory.draw opened =", inventory.opened)
+        inventory.draw()
+
         pygame.display.flip()
 
     return True
+
+
+def death_screen(screen):
+    font_big = pygame.font.Font(None, 90)
+    font = pygame.font.Font(None, 36)
+
+    while True:
+        screen.fill((10, 0, 0))
+
+        title = font_big.render("YOU DIED", True, (220, 30, 30))
+        hint = font.render("Нажми ENTER чтобы начать заново", True, WHITE)
+
+        screen.blit(
+            title,
+            title.get_rect(center=(screen.get_width()//2, screen.get_height()//2 - 50))
+        )
+
+        screen.blit(
+            hint,
+            hint.get_rect(center=(screen.get_width()//2, screen.get_height()//2 + 50))
+        )
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    return True
+
 
 
 # ============================================================
@@ -260,8 +340,11 @@ def main():
         if choice == "start":
             char_data = show_character_select(screen, game_settings)
             if char_data is not None:
-                if not game_loop(screen, game_settings, char_data=char_data):
-                    break
+                result = game_loop(screen, game_settings, char_data=char_data)
+
+                if result == "dead":
+                    if not death_screen(screen):
+                        break
 
         elif choice == "settings":
             show_settings(screen, game_settings)
